@@ -77,11 +77,15 @@ using namespace NativeScript;
 
 - (void)scheduleInRunLoop:(NSRunLoop*)runLoop forMode:(NSString*)mode {
     CFRunLoopAddSource(runLoop.getCFRunLoop, self->_globalObject->microtaskRunLoopSource(), (CFStringRef)mode);
+    CFRunLoopAddObserver(runLoop.getCFRunLoop, self->_globalObject->vmEntryScopeListenersObserver(), (CFStringRef)mode);
+    
     self->_globalObject->microtaskRunLoops().push_back(WTF::retainPtr(runLoop.getCFRunLoop));
 }
 
 - (void)removeFromRunLoop:(NSRunLoop*)runLoop forMode:(NSString*)mode {
     CFRunLoopRemoveSource(runLoop.getCFRunLoop, self->_globalObject->microtaskRunLoopSource(), (CFStringRef)mode);
+    CFRunLoopRemoveObserver(runLoop.getCFRunLoop, self->_globalObject->vmEntryScopeListenersObserver(), (CFStringRef)mode);
+    
     self->_globalObject->microtaskRunLoops().remove(WTF::retainPtr(runLoop.getCFRunLoop));
 }
 

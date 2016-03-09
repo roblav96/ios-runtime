@@ -16,6 +16,8 @@
 #include <JavaScriptCore/JSGlobalObjectFunctions.h>
 #include <JavaScriptCore/runtime/JSConsole.h>
 #include <JavaScriptCore/inspector/JSGlobalObjectConsoleClient.h>
+#include <JavaScriptCore/JSMap.h>
+#include <JavaScriptCore/VMEntryScope.h>
 #include "ObjCProtocolWrapper.h"
 #include "ObjCConstructorNative.h"
 #include "ObjCPrototype.h"
@@ -46,11 +48,14 @@
 #include "ObjCTypes.h"
 #include "FFICallPrototype.h"
 #include "UnmanagedType.h"
+#include "LiveSyncSourceProvider.h"
 
 namespace NativeScript {
 using namespace JSC;
 using namespace Metadata;
 
+
+    
 JSC::EncodedJSValue JSC_HOST_CALL NSObjectAlloc(JSC::ExecState* execState) {
     ObjCConstructorBase* constructor = jsCast<ObjCConstructorBase*>(execState->thisValue().asCell());
     Class klass = constructor->klass();
@@ -117,6 +122,15 @@ static void microtaskRunLoopSourcePerformWork(void* context) {
     JSLockHolder lockHolder(self->vm());
     self->drainMicrotasks();
 }
+    
+static void vmEntryScopeListenersPerformWork(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    GlobalObject* self = static_cast<GlobalObject*>(info);
+    WTF::Vector<std::function<void ()>>& didPopListeners = self->vm().entryScope->didPopListeners();
+    
+    UNUSED_PARAM(didPopListeners);
+//    JSLockHolder lockHolder(self->vm());
+//    self->drainMicrotasks();
+}
 
 void GlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
     Base::finishCreation(vm);
@@ -173,6 +187,8 @@ void GlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
     NSObjectConstructor->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, WTF::ASCIILiteral("extend")), 2, ObjCExtendFunction, NoIntrinsic, DontEnum);
     NSObjectConstructor->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, WTF::ASCIILiteral("alloc")), 0, NSObjectAlloc, NoIntrinsic, DontDelete);
 
+    this->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, WTF::ASCIILiteral("MyTestFunc")), 1, MyTestFunc, NoIntrinsic, DontDelete);
+    
     MarkedArgumentBuffer descriptionFunctionArgs;
     descriptionFunctionArgs.append(jsString(globalExec, WTF::ASCIILiteral("return this.description;")));
     ObjCPrototype* NSObjectPrototype = jsCast<ObjCPrototype*>(NSObjectConstructor->get(globalExec, vm.propertyNames->prototype));
@@ -185,8 +201,11 @@ void GlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
     NSObjectConstructor->setPrototype(vm, NSObjectPrototype);
 
     CFRunLoopSourceContext context = { 0, this, 0, 0, 0, 0, 0, 0, 0, microtaskRunLoopSourcePerformWork };
+    CFRunLoopObserverContext vmEntryScopeListenersContext = { 0, this, 0, 0, 0, };
+    
     _microtaskRunLoopSource = WTF::adoptCF(CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context));
-
+    _vmEntryScopeListenersObserver = WTF::adoptCF(CFRunLoopObserverCreate(kCFAllocatorDefault, kCFRunLoopBeforeWaiting, YES, 0, vmEntryScopeListenersPerformWork, &vmEntryScopeListenersContext));
+    
     _commonJSModuleFunctionIdentifier = Identifier::fromString(&vm, "CommonJSModuleFunction");
     this->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, "require"), 1, commonJSRequire, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
 }

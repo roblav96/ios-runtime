@@ -1,0 +1,1 @@
+export default function alertM() {console.log(1+8);}

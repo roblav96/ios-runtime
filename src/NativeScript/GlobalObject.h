@@ -26,6 +26,8 @@ class GlobalObjectInspectorController;
 class FFICallPrototype;
 class ReleasePoolBase;
 
+    JSC::EncodedJSValue JSC_HOST_CALL MyTestFunc(JSC::ExecState* execState);
+    
 class GlobalObject : public JSC::JSGlobalObject {
 public:
     typedef JSC::JSGlobalObject Base;
@@ -139,6 +141,10 @@ public:
     CFRunLoopSourceRef microtaskRunLoopSource() const {
         return this->_microtaskRunLoopSource.get();
     }
+    
+    CFRunLoopObserverRef vmEntryScopeListenersObserver() const {
+        return this->_vmEntryScopeListenersObserver.get();
+    }
 
     std::list<WTF::RetainPtr<CFRunLoopRef>>& microtaskRunLoops() {
         return this->_microtaskRunLoops;
@@ -192,7 +198,7 @@ private:
 
     std::list<WTF::RetainPtr<CFRunLoopRef>> _microtaskRunLoops;
     WTF::RetainPtr<CFRunLoopSourceRef> _microtaskRunLoopSource;
-
+    WTF::RetainPtr<CFRunLoopObserverRef> _vmEntryScopeListenersObserver;
     JSC::WriteBarrier<FFICallPrototype> _ffiCallPrototype;
     JSC::WriteBarrier<JSC::Structure> _objCMethodCallStructure;
     JSC::WriteBarrier<JSC::Structure> _objCConstructorCallStructure;

@@ -1,4 +1,5 @@
 import fetch from './fetch';
+import alertM from './alertM';
 
 var dateFormatter = new NSDateFormatter();
 dateFormatter.locale = NSLocale.currentLocale();
@@ -21,14 +22,7 @@ var JSMasterViewController = UITableViewController.extend(
         this.loadData();
       },
       "aboutPressed:" : function(sender) {
-        var alertWindow = new UIAlertView({
-          title : "About",
-          message : "NativeScript Team",
-          delegate : null,
-          cancelButtonTitle : "OK",
-          otherButtonTitles : null
-        });
-        alertWindow.show();
+        alertM();
       },
       numberOfSectionsInTableView : function(tableView) { return 1; },
       tableViewNumberOfRowsInSection : function(tableView, section) {

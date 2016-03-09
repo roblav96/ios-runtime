@@ -20,17 +20,75 @@
 #include <JavaScriptCore/ObjectConstructor.h>
 #include <JavaScriptCore/Nodes.h>
 #include <JavaScriptCore/Parser.h>
+#include <JavaScriptCore/CodeCache.h>
+#include <JavaScriptCore/HeapIterationScope.h>
+#include <JavaScriptCore/MarkedSpace.h>
 #include <JavaScriptCore/ParserError.h>
 #include <JavaScriptCore/tools/CodeProfiling.h>
 #include <JavaScriptCore/FunctionConstructor.h>
 #include <JavaScriptCore/LiteralParser.h>
+#include <JavaScriptCore/JSMap.h>
 #include "ObjCTypes.h"
 #include "Interop.h"
+#include "LiveSyncSourceProvider.h"
 #include <sys/stat.h>
 
 namespace NativeScript {
 using namespace JSC;
 
+class DeleteCodeFunctor : public MarkedBlock::VoidFunctor {
+public:
+    DeleteCodeFunctor(WTF::String url);
+    IterationStatus operator()(JSCell*);
+    
+private:
+    void visit(JSCell*);
+    
+    WTF::String m_url;
+};
+    
+DeleteCodeFunctor::DeleteCodeFunctor(WTF::String url) : m_url(url) {
+
+}
+    
+IterationStatus DeleteCodeFunctor::operator()(JSCell* cell)
+{
+    visit(cell);
+    return IterationStatus::Continue;
+}
+    
+void DeleteCodeFunctor::visit(JSC::JSCell * cell) {
+    if (!cell->inherits(JSFunction::info()))
+        return;
+    
+    JSFunction* function = jsCast<JSFunction*>(cell);
+    if (function->executable()->isHostFunction() || function->isBuiltinFunction())
+        return;
+    
+    if(m_url == function->sourceCode()->provider()->url()) {
+        FunctionExecutable* executable = function->jsExecutable();
+        if(FunctionCodeBlock* functionCodeBlock = executable->codeBlockForCall()) {
+            functionCodeBlock->unlinkIncomingCalls();
+        }
+        
+        // should also set start column
+        int length = function->sourceCode()->provider()->source().length();
+        const_cast<JSC::SourceCode*>(function->sourceCode())->setEndOffset(length);
+//        function->sourceCode()
+        //    -
+        //    -    // Check if the function is already in the set - if so,
+        //    -    // we've already retranslated it, nothing to do here.
+        //    -    if (!m_functionExecutables.add(executable).isNewEntry)
+        //        -        return;
+        
+        //    ExecState* exec = function->scope()->globalObject()->JSGlobalObject::globalExec();
+        
+        
+        executable->clearCode();
+        executable->unlinkedExecutable()->clearCode();
+    }
+}
+    
 template <mode_t mode>
 static NSString* stat(NSString* path) {
     struct stat statbuf;
@@ -55,6 +113,35 @@ static NSString* resolveFile(NSString* filePath) {
     return nil;
 }
 
+JSC::EncodedJSValue JSC_HOST_CALL MyTestFunc(JSC::ExecState* execState) {
+    GlobalObject* globalObject = jsCast<GlobalObject*>(execState->lexicalGlobalObject());
+    
+    JSValue registry = globalObject->moduleLoader()->get(globalObject->globalExec(), Identifier::fromString(&globalObject->vm(), "registry"));
+    JSMap* registryMap = jsCast<JSMap*>(registry);
+    
+    WTF::String content = execState->argument(1).toWTFString(execState);
+
+    JSValue value = registryMap->get(execState, execState->argument(0));
+    if(value != jsUndefined()) {
+        Identifier moduleIdentifier = Identifier::fromString(&globalObject->vm(), "module");
+        if (JSModuleRecord* record = jsDynamicCast<JSModuleRecord*>(value.get(globalObject->globalExec(), moduleIdentifier))) {
+            LiveSyncSourceProvider* sourceProvider = static_cast<LiveSyncSourceProvider*>(record->sourceCode().provider());
+            NSError* error;
+            NSString* content = [NSString stringWithContentsOfFile:@"/Users/koeva/work/ios-runtime/examples/Gameraww/app/alertM.js" encoding:NSUTF8StringEncoding error:&error];
+            sourceProvider->setSource(content);
+            
+            DeleteCodeFunctor functor(WTF::ASCIILiteral("file:///app/alertM.js"));
+            {
+                HeapIterationScope iterationScope(globalObject->vm().heap);
+                globalObject->vm().heap.objectSpace().forEachLiveCell(iterationScope, functor);
+            }
+        }
+    }
+
+    return JSValue::encode(jsUndefined());
+}
+    
+    
 JSInternalPromise* GlobalObject::moduleLoaderResolve(JSGlobalObject* globalObject, ExecState* execState, JSValue keyValue, JSValue referrerValue) {
     JSInternalPromiseDeferred* deferred = JSInternalPromiseDeferred::create(execState, globalObject);
 
@@ -232,13 +319,16 @@ JSInternalPromise* GlobalObject::moduleLoaderInstantiate(JSGlobalObject* globalO
         source = WTF::ASCIILiteral("export default undefined;");
     }
 
-    SourceCode sourceCode = makeSource(source, moduleUrl.toString());
+//    SourceCode sourceCode = makeSource(source, moduleUrl.toString());
+    TextPosition startPosition = TextPosition::minimumPosition();
+    SourceCode sourceCode = SourceCode(LiveSyncSourceProvider::create(source, moduleUrl.toString()), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
     ParserError error;
     JSModuleRecord* moduleRecord = parseModule(execState, sourceCode, moduleKey, error);
 
     if (!moduleRecord || (moduleRecord->requestedModules().isEmpty() && moduleRecord->exportEntries().isEmpty() && moduleRecord->starExportEntries().isEmpty() && !json)) {
         error = ParserError();
-        sourceCode = makeSource(WTF::ASCIILiteral("export default undefined;"));
+        sourceCode = SourceCode(LiveSyncSourceProvider::create(WTF::ASCIILiteral("export default undefined;"), WTF::emptyString()), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
+//        sourceCode = makeSource(WTF::ASCIILiteral("export default undefined;"));
         moduleRecord = parseModule(execState, sourceCode, moduleKey, error);
         ASSERT(!error.isValid());
 
@@ -248,6 +338,8 @@ JSInternalPromise* GlobalObject::moduleLoaderInstantiate(JSGlobalObject* globalO
         moduleFunctionSource.append("\n}}");
 
         JSObject* exception = nullptr;
+        TextPosition startPosition2 = WTF::TextPosition();
+        SourceCode sourceCode = SourceCode(LiveSyncSourceProvider::create(moduleFunctionSource.toString(), moduleUrl.toString()), startPosition2.m_line.oneBasedInt(), startPosition2.m_column.oneBasedInt());
         FunctionExecutable* moduleFunctionExecutable = FunctionExecutable::fromGlobalCode(Identifier::fromString(execState, "anonymous"), *execState, makeSource(moduleFunctionSource.toString(), moduleUrl.toString(), WTF::TextPosition()), exception, -1);
         if (!moduleFunctionExecutable) {
             ASSERT(exception);
@@ -375,6 +467,7 @@ JSValue GlobalObject::moduleLoaderEvaluate(JSGlobalObject* globalObject, ExecSta
         args.append(require);
         args.append(module);
         args.append(exports);
+        
         args.append(jsString(&vm, moduleUrl.path.stringByDeletingLastPathComponent));
         args.append(jsString(&vm, moduleUrl.path));
 
