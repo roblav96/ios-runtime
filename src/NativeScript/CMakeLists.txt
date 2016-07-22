@@ -82,6 +82,10 @@ set(HEADER_FILES
     Runtime/JSWeakRefInstance.h
     Runtime/JSWeakRefPrototype.h
     Runtime/ReleasePool.h
+    Workers/JSWorkerConstructor.h
+    Workers/JSWorkerInstance.h
+    Workers/JSWorkerPrototype.h
+    Workers/JSWorkerGlobalObject.h
     SymbolLoader.h
     TimelineRecordFactory.h
     TNSRuntime+Diagnostics.h
@@ -169,6 +173,10 @@ set(SOURCE_FILES
     Runtime/JSWeakRefConstructor.cpp
     Runtime/JSWeakRefInstance.cpp
     Runtime/JSWeakRefPrototype.cpp
+    Workers/JSWorkerConstructor.cpp
+    Workers/JSWorkerInstance.cpp
+    Workers/JSWorkerPrototype.cpp
+    Workers/JSWorkerGlobalObject.cpp
     SymbolLoader.mm
     TimelineRecordFactory.cpp
     TNSRuntime+Diagnostics.mm
