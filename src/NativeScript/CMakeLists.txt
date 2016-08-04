@@ -210,7 +210,6 @@ if(${BUILD_SHARED_LIBS})
         MACOSX_FRAMEWORK_SHORT_VERSION_STRING "${BASE_NATIVESCRIPT_VERSION}"
         PUBLIC_HEADER "${NativeScript_PUBLIC_HEADERS}"
         INSTALL_NAME_DIR "@executable_path/Frameworks"
-        XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "iPhone Developer"
         MACOSX_FRAMEWORK_IDENTIFIER "org.nativescript.NativeScript"
     )
     target_link_libraries(NativeScript
