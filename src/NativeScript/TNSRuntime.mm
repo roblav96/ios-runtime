@@ -27,6 +27,7 @@
 #include "JSErrors.h"
 #include "Metadata/Metadata.h"
 #include "ObjCTypes.h"
+#include "Workers/JSWorkerGlobalObject.h"
 
 using namespace JSC;
 using namespace NativeScript;
@@ -45,6 +46,10 @@ using namespace NativeScript;
 }
 
 - (instancetype)initWithApplicationPath:(NSString*)applicationPath {
+    return [self initWithApplicationPath:applicationPath isWorker:false];
+}
+
+- (instancetype)initWithApplicationPath:(NSString*)applicationPath isWorker:(BOOL)isWorker {
     if (self = [super init]) {
         self->_vm = VM::create(SmallHeap);
         self->_applicationPath = [[applicationPath stringByStandardizingPath] retain];
@@ -58,7 +63,10 @@ using namespace NativeScript;
 #endif
 
         JSLockHolder lock(*self->_vm);
-        self->_globalObject = Strong<GlobalObject>(*self->_vm, GlobalObject::create(self->_applicationPath, *self->_vm, GlobalObject::createStructure(*self->_vm, jsNull())));
+        if (isWorker)
+            self->_globalObject = Strong<JSWorkerGlobalObject>(*self->_vm, JSWorkerGlobalObject::create(self->_applicationPath, *self->_vm, JSWorkerGlobalObject::createStructure(*self->_vm, jsNull())));
+        else
+            self->_globalObject = Strong<GlobalObject>(*self->_vm, GlobalObject::create(self->_applicationPath, *self->_vm, GlobalObject::createStructure(*self->_vm, jsNull())));
 
 #if PLATFORM(IOS)
         NakedPtr<Exception> exception;

@@ -22,7 +22,8 @@ static EncodedJSValue JSC_HOST_CALL constructJSWorker(ExecState* exec) {
         return JSValue::encode(JSValue());
 
     GlobalObject* globalObject = jsCast<GlobalObject*>(exec->lexicalGlobalObject());
-    JSWorkerInstance* worker = JSWorkerInstance::create(exec->vm(), globalObject->workerInstanceStructure(), scriptURL);
+    WTF::String applicationPath = globalObject->applicationPath();
+    JSWorkerInstance* worker = JSWorkerInstance::create(exec->vm(), globalObject->workerInstanceStructure(), applicationPath, scriptURL);
     return JSValue::encode(worker);
 }
 

@@ -21,6 +21,8 @@ FOUNDATION_EXTERN void TNSSetUncaughtErrorHandler(TNSUncaughtErrorHandler handle
 
 - (instancetype)initWithApplicationPath:(NSString*)applicationPath;
 
+- (instancetype)initWithApplicationPath:(NSString*)applicationPath isWorker:(BOOL)isWorker;
+
 - (void)scheduleInRunLoop:(NSRunLoop*)runLoop forMode:(NSString*)mode;
 
 - (void)removeFromRunLoop:(NSRunLoop*)runLoop forMode:(NSString*)mode;

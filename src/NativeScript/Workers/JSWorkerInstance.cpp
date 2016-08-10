@@ -7,15 +7,31 @@
 //
 
 #include "JSWorkerInstance.h"
+#include "WorkerMessagingProxy.h"
 
 namespace NativeScript {
 using namespace JSC;
 
 const ClassInfo JSWorkerInstance::s_info = { "Worker", &Base::s_info, 0, CREATE_METHOD_TABLE(JSWorkerInstance) };
 
-void JSWorkerInstance::finishCreation(JSC::VM& vm, const WTF::String& moduleName) {
+JSWorkerInstance* JSWorkerInstance::create(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId) {
+    // We don't currently support nested workers, so workers can only be created from the main thread.
+    ASSERT(isMainThread());
+
+    JSWorkerInstance* object = new (NotNull, JSC::allocateCell<JSWorkerInstance>(vm.heap)) JSWorkerInstance(vm, structure, applicationPath, entryModuleId);
+    object->finishCreation(vm);
+    return object;
+}
+
+JSWorkerInstance::JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId)
+    : Base(vm, structure)
+    , applicationPath(applicationPath)
+    , entryModuleId(entryModuleId)
+    , globalObjectProxy(new WorkerMessagingProxy(this)) {
+}
+
+void JSWorkerInstance::finishCreation(JSC::VM& vm) {
     Base::finishCreation(vm);
-    this->moduleName = moduleName;
 
     // WorkerThreadStartMode startMode = DontPauseWorkerGlobalScopeOnStart;
     /* TODO: Check whether should stop on the first line on the Worker thread
@@ -23,8 +39,7 @@ void JSWorkerInstance::finishCreation(JSC::VM& vm, const WTF::String& moduleName
      startMode = PauseWorkerGlobalScopeOnStart;
      */
 
-    // TOD: Instead of starting the execution with a sythetic module which requires the real one, resolve and load the content of the real module
-    //contextProxy->startWorkerGlobalScope(WTF::String("worker-synthetic-module"), WTF::makeString("require(", moduleName, ");"), startMode);
+    this->globalObjectProxy->startWorkerGlobalScope(this->applicationPath, entryModuleId);
 
     /* TDOO: Notify the inspector that a script is imported
      InspectorInstrumentation::scriptImported(scriptExecutionContext(), m_scriptLoader->identifier(), m_scriptLoader->script());

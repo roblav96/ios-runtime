@@ -1,4 +1,5 @@
 #include "JSWorkerGlobalObject.h"
+#include "WorkerMessagingProxy.h"
 #include "Error.h"
 
 using namespace JSC;
@@ -9,11 +10,12 @@ static EncodedJSValue JSC_HOST_CALL jsWorkerGlobalObjectClose(ExecState* execSta
     if (!execState->thisValue().isCell()) {
         return throwVMError(execState, createTypeError(execState, makeString("The close function can only be called on worker global object.")));
     }
-    JSWorkerGlobalObject* castedThis = jsDynamicCast<JSWorkerGlobalObject*>(execState->thisValue().asCell());
-    if (UNLIKELY(!castedThis))
+    JSWorkerGlobalObject* globalObject = jsCast<JSWorkerGlobalObject*>(execState->lexicalGlobalObject());
+    JSCell* currentThis = execState->thisValue().asCell();
+    if (UNLIKELY(globalObject->globalThis() != currentThis))
         return throwVMError(execState, createTypeError(execState, makeString("The close function can only be called on worker global object.")));
-    ASSERT_GC_OBJECT_INHERITS(castedThis, JSWorkerGlobalObject::info());
-    castedThis->close();
+    ASSERT_GC_OBJECT_INHERITS(globalObject, JSWorkerGlobalObject::info());
+    globalObject->close();
     return JSValue::encode(jsUndefined());
 }
 
@@ -38,7 +40,8 @@ Structure* JSWorkerGlobalObject::createStructure(VM& vm, JSValue prototype) {
 }
 
 JSWorkerGlobalObject::JSWorkerGlobalObject(VM& vm, Structure* structure)
-    : GlobalObject(vm, structure) {
+    : GlobalObject(vm, structure)
+    , workerObjectProxy(nullptr) {
 }
 
 JSWorkerGlobalObject::~JSWorkerGlobalObject() {
@@ -47,15 +50,18 @@ JSWorkerGlobalObject::~JSWorkerGlobalObject() {
 void JSWorkerGlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
     Base::finishCreation(applicationPath, vm);
 
-    ExecState* globalExec = this->globalExec();
-
-    // TODO: importScripts can recieve more than one argument
-    this->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, "importScripts"), 1, commonJSRequire, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
-    this->putDirect(vm, Identifier::fromString(&vm, "self"), JSValue(globalExec->globalThisValue()), DontEnum | ReadOnly | DontDelete);
+    this->putDirect(vm, Identifier::fromString(&vm, "self"), this->globalExec()->globalThisValue(), DontEnum | ReadOnly | DontDelete);
     this->putDirectNativeFunction(vm, this, vm.propertyNames->close, 0, jsWorkerGlobalObjectClose, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
+    this->putDirectNativeFunction(vm, this, vm.propertyNames->postMessage, 0, jsWorkerGlobalObjectPostMessage, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
+    // TODO: importScripts should be able to receive more than one argument
+    this->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, "importScripts"), 1, commonJSRequire, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
+}
+
+void JSWorkerGlobalObject::setWorkerObjectProxy(WorkerObjectProxy* workerObjectProxy) {
+    std::shared_ptr<WorkerObjectProxy> proxy(workerObjectProxy);
+    this->workerObjectProxy = proxy;
 }
 
 void JSWorkerGlobalObject::close() {
-    // TODO: Provide implementation
 }
 }

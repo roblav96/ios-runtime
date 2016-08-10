@@ -178,6 +178,11 @@ public:
         return this->_modulePathCache;
     }
 
+    void queueTaskToEventLoop(WTF::PassRefPtr<JSC::Microtask> task) {
+        LockHolder lock(this->_queueTaskMutex);
+        GlobalObject::queueTaskToEventLoop(this, task);
+    }
+
 protected:
     static void destroy(JSC::JSCell* cell);
 
@@ -191,6 +196,8 @@ protected:
 
 private:
     WTF::Deque<WTF::RefPtr<JSC::Microtask>> _microtasksQueue;
+    WTF::Lock _queueTaskMutex;
+
     static void queueTaskToEventLoop(const JSC::JSGlobalObject* globalObject, WTF::PassRefPtr<JSC::Microtask> task);
 
     static bool supportsProfiling(const JSGlobalObject*);

@@ -10,20 +10,15 @@
 #define __NativeScript__JSWorkerInstance__
 
 namespace NativeScript {
+class WorkerGlobalScopeProxy;
+
 class JSWorkerInstance : public JSC::JSDestructibleObject {
 public:
     typedef JSC::JSDestructibleObject Base;
 
     DECLARE_INFO;
 
-    static JSWorkerInstance* create(JSC::VM& vm, JSC::Structure* structure, const WTF::String& moduleName) {
-        // We don't currently support nested workers, so workers can only be created from the main thread.
-        ASSERT(isMainThread());
-
-        JSWorkerInstance* object = new (NotNull, JSC::allocateCell<JSWorkerInstance>(vm.heap)) JSWorkerInstance(vm, structure);
-        object->finishCreation(vm, moduleName);
-        return object;
-    }
+    static JSWorkerInstance* create(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId);
 
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype) {
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
@@ -40,16 +35,16 @@ public:
     }
 
 private:
-    WTF::String moduleName;
+    WTF::String applicationPath;
+    WTF::String entryModuleId;
+    std::shared_ptr<WorkerGlobalScopeProxy> globalObjectProxy;
 
-    JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure)
-        : Base(vm, structure) {
-    }
+    JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId);
 
     ~JSWorkerInstance() {
     }
 
-    void finishCreation(JSC::VM& vm, const WTF::String& moduleName);
+    void finishCreation(JSC::VM& vm);
 
     static void destroy(JSC::JSCell* cell) {
         JSC::jsCast<JSWorkerInstance*>(cell)->~JSWorkerInstance();

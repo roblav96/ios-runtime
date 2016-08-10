@@ -86,6 +86,8 @@ set(HEADER_FILES
     Workers/JSWorkerInstance.h
     Workers/JSWorkerPrototype.h
     Workers/JSWorkerGlobalObject.h
+    Workers/WorkerMessagingProxy.h
+    Workers/WorkerThread.h
     SymbolLoader.h
     TimelineRecordFactory.h
     TNSRuntime+Diagnostics.h
@@ -177,6 +179,8 @@ set(SOURCE_FILES
     Workers/JSWorkerInstance.cpp
     Workers/JSWorkerPrototype.cpp
     Workers/JSWorkerGlobalObject.cpp
+    Workers/WorkerMessagingProxy.cpp
+    Workers/WorkerThread.mm
     SymbolLoader.mm
     TimelineRecordFactory.cpp
     TNSRuntime+Diagnostics.mm
