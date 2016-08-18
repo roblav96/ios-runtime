@@ -27,7 +27,11 @@ JSWorkerInstance::JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure, WTF::
     : Base(vm, structure)
     , applicationPath(applicationPath)
     , entryModuleId(entryModuleId)
-    , globalObjectProxy(new WorkerMessagingProxy(this)) {
+    , globalObjectProxy(new WorkerMessagingProxy(jsCast<GlobalObject*>(structure->globalObject()), this)) {
+}
+
+JSWorkerInstance::~JSWorkerInstance() {
+    this->globalObjectProxy->terminateWorkerGlobalScope();
 }
 
 void JSWorkerInstance::finishCreation(JSC::VM& vm) {

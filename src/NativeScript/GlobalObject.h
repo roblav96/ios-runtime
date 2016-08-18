@@ -26,6 +26,10 @@ class GlobalObjectInspectorController;
 class FFICallPrototype;
 class ReleasePoolBase;
 
+enum MicrotaskFlags : int {
+    Cleanup = 1
+};
+
 class GlobalObject : public JSC::JSGlobalObject {
 public:
     typedef JSC::JSGlobalObject Base;
@@ -162,7 +166,7 @@ public:
 
     void drainMicrotasks();
 
-    WTF::Deque<WTF::RefPtr<JSC::Microtask>>& microtasks() {
+    WTF::Deque<std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags>>& microtasks() {
         return this->_microtasksQueue;
     }
 
@@ -178,9 +182,14 @@ public:
         return this->_modulePathCache;
     }
 
-    void queueTaskToEventLoop(WTF::PassRefPtr<JSC::Microtask> task) {
-        LockHolder lock(this->_queueTaskMutex);
-        GlobalObject::queueTaskToEventLoop(this, task);
+    void queueTaskToEventLoop(WTF::PassRefPtr<JSC::Microtask> task, MicrotaskFlags flags = static_cast<MicrotaskFlags>(0));
+
+    MicrotaskFlags microtasksMask() {
+        return this->_microtasksMask;
+    }
+
+    MicrotaskFlags setMicrotasksMask(MicrotaskFlags mask) {
+        return this->_microtasksMask = mask;
     }
 
 protected:
@@ -195,10 +204,13 @@ protected:
     void finishCreation(WTF::String applicationPath, JSC::VM& vm);
 
 private:
-    WTF::Deque<WTF::RefPtr<JSC::Microtask>> _microtasksQueue;
+    WTF::Deque<std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags>> _microtasksQueue;
     WTF::Lock _queueTaskMutex;
+    MicrotaskFlags _microtasksMask;
 
     static void queueTaskToEventLoop(const JSC::JSGlobalObject* globalObject, WTF::PassRefPtr<JSC::Microtask> task);
+
+    static void queueTaskToEventLoop(const JSC::JSGlobalObject* globalObject, WTF::PassRefPtr<JSC::Microtask> task, MicrotaskFlags taskFlags);
 
     static bool supportsProfiling(const JSGlobalObject*);
 

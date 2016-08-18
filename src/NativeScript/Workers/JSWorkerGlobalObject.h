@@ -4,7 +4,7 @@
 #include "../GlobalObject.h"
 
 namespace NativeScript {
-class WorkerObjectProxy;
+class WorkerMessagingProxy;
 
 class JSWorkerGlobalObject : public GlobalObject {
 public:
@@ -20,7 +20,7 @@ public:
 
     void close();
 
-    void setWorkerObjectProxy(WorkerObjectProxy* workerObjectProxy);
+    void setWorkerObjectProxy(WorkerMessagingProxy* workerObjectProxy);
 
 protected:
     JSWorkerGlobalObject(JSC::VM&, JSC::Structure*);
@@ -30,7 +30,8 @@ protected:
     void finishCreation(WTF::String applicationPath, JSC::VM& vm);
 
 private:
-    std::shared_ptr<WorkerObjectProxy> workerObjectProxy;
+    bool isClosing;
+    std::shared_ptr<WorkerMessagingProxy> workerObjectProxy;
 };
 } // namespace NativeScript
 

@@ -18,12 +18,15 @@ class JSWorkerInstance;
 class WorkerGlobalScopeProxy {
 public:
     virtual void startWorkerGlobalScope(const String& applicationPath, const String& entryModuleId) = 0;
+    virtual void terminateWorkerGlobalScope() = 0;
 };
 
 class WorkerReportingProxy {
 };
 
 class WorkerObjectProxy : public WorkerReportingProxy {
+public:
+    virtual void workerGlobalScopeClosed() = 0;
 };
 
 class WorkerLoaderProxy {
@@ -31,14 +34,22 @@ class WorkerLoaderProxy {
 
 class WorkerMessagingProxy : public WorkerGlobalScopeProxy, public WorkerObjectProxy, public WorkerLoaderProxy {
 public:
-    WorkerMessagingProxy(JSWorkerInstance* worker);
+    WorkerMessagingProxy(GlobalObject* parentGlobalObject, JSWorkerInstance* worker);
 
+    // WorkerGlobalScopeProxy
     virtual void startWorkerGlobalScope(const String& applicationPath, const String& entryModuleId) override;
+    virtual void terminateWorkerGlobalScope() override;
+
+    // WorkerObjectProxy
+    virtual void workerGlobalScopeClosed() override;
 
 private:
-    // TODO: This should be in JSC::WriteBarrier
+    // TODO: These should be in JSC::WriteBarrier
+    GlobalObject* parentGlobalObject;
     JSWorkerInstance* worker;
-    RefPtr<WorkerThread> workerThread;
+    std::shared_ptr<WorkerThread> workerThread;
+
+    bool askedToTerminate;
 };
 }
 

@@ -13,31 +13,37 @@
 
 namespace NativeScript {
 class JSWorkerGlobalObject;
-class WorkerObjectProxy;
+class WorkerMessagingProxy;
 
-class WorkerThread : public RefCounted<WorkerThread> {
+class WorkerThread {
 public:
     bool start();
 
-    void enqueTaskOnGlobalObject(WTF::PassRefPtr<JSC::Microtask> task);
+    // Called on worker termination
+    void stop();
 
-    WorkerThread(const String applicationPath, const String& entryModuleId, WorkerObjectProxy* workerObjectProxy);
+    JSWorkerGlobalObject* workerGlobalObject();
+
+    void enqueTaskOnGlobalObject(WTF::PassRefPtr<JSC::Microtask> task, MicrotaskFlags flags = static_cast<MicrotaskFlags>(0));
+
+    WorkerThread(const String applicationPath, const String& entryModuleId, WorkerMessagingProxy* workerObjectProxy);
 
 private:
-    // Static function executed as the core routine on the new thread. Passed a pointer to a WorkerThread object.
-    static void workerThreadStart(void* thread);
-    void workerThread();
+    // This method is executed as the core routine on the new thread
+    static void workerThreadMain(void*);
+    void workerThreadStart();
 
     String applicationPath;
     String entryModuleId;
-    ThreadIdentifier threadID;
-    std::shared_ptr<WorkerObjectProxy> workerObjectProxy;
+    bool threadStarted;
+    WorkerMessagingProxy* workerObjectProxy;
 
     id runtime;
-    std::atomic<bool> runtimeIsInitialized;
+    bool continueRunLoop;
 
     // Tasks queued before runtime initilaization are saved here and executed after the runtime is initialized
     WTF::Deque<WTF::RefPtr<JSC::Microtask>> microtasksQueue;
+    std::atomic<bool> useMicrotasksQueue;
     WTF::Lock microtasksQueueMutex;
 };
 }

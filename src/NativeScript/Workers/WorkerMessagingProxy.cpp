@@ -8,18 +8,36 @@
 
 #include "WorkerMessagingProxy.h"
 #include "WorkerThread.h"
+#include "Task.h"
 
 namespace NativeScript {
 using namespace JSC;
 
-WorkerMessagingProxy::WorkerMessagingProxy(JSWorkerInstance* workerInstance)
-    : worker(workerInstance) {
-    ASSERT(worker);
+WorkerMessagingProxy::WorkerMessagingProxy(GlobalObject* parentGlobalObject, JSWorkerInstance* worker)
+    : parentGlobalObject(parentGlobalObject)
+    , worker(worker)
+    , askedToTerminate(false) {
+    ASSERT(this->worker);
     ASSERT(isMainThread()); // TODO: Should be revisited when supporting nested workers
 }
 
 void WorkerMessagingProxy::startWorkerGlobalScope(const String& applicationPath, const String& entryModuleId) {
-    this->workerThread = adoptRef(new WorkerThread(applicationPath, entryModuleId, this));
+    this->workerThread = std::shared_ptr<WorkerThread>(new WorkerThread(applicationPath, entryModuleId, this));
     this->workerThread->start();
+}
+
+void WorkerMessagingProxy::terminateWorkerGlobalScope() {
+    if (this->askedToTerminate)
+        return;
+    this->askedToTerminate = true;
+
+    if (this->workerThread)
+        this->workerThread->stop();
+}
+
+void WorkerMessagingProxy::workerGlobalScopeClosed() {
+    this->parentGlobalObject->queueTaskToEventLoop(adoptRef(new Task([this](JSC::ExecState* execState) {
+        this->terminateWorkerGlobalScope();
+    })));
 }
 }

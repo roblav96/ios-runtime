@@ -92,7 +92,8 @@ const unsigned GlobalObject::StructureFlags = OverridesGetOwnPropertySlot | Base
 const GlobalObjectMethodTable GlobalObject::globalObjectMethodTable = { &allowsAccessFrom, &supportsProfiling, &supportsRichSourceInfo, &shouldInterruptScript, &javaScriptRuntimeFlags, &queueTaskToEventLoop, &shouldInterruptScriptBeforeTimeout, &moduleLoaderResolve, &moduleLoaderFetch, &moduleLoaderTranslate, &moduleLoaderInstantiate, &moduleLoaderEvaluate };
 
 GlobalObject::GlobalObject(VM& vm, Structure* structure)
-    : JSGlobalObject(vm, structure, &GlobalObject::globalObjectMethodTable) {
+    : JSGlobalObject(vm, structure, &GlobalObject::globalObjectMethodTable)
+    , _microtasksMask(static_cast<MicrotaskFlags>(0)) {
 }
 
 GlobalObject::~GlobalObject() {
@@ -449,18 +450,30 @@ ObjCProtocolWrapper* GlobalObject::protocolWrapperFor(Protocol* aProtocol) {
     return protocolWrapper;
 }
 
-void GlobalObject::queueTaskToEventLoop(const JSGlobalObject* globalObject, WTF::PassRefPtr<Microtask> task) {
-    GlobalObject* self = jsCast<GlobalObject*>(const_cast<JSGlobalObject*>(globalObject));
-    self->_microtasksQueue.append(task);
-    CFRunLoopSourceSignal(self->_microtaskRunLoopSource.get());
-    for (auto runLoop : self->microtaskRunLoops()) {
+void GlobalObject::queueTaskToEventLoop(WTF::PassRefPtr<JSC::Microtask> task, MicrotaskFlags flags) {
+    LockHolder lock(this->_queueTaskMutex);
+    this->_microtasksQueue.append(std::make_pair(task, flags));
+    CFRunLoopSourceSignal(this->_microtaskRunLoopSource.get());
+    for (auto runLoop : this->microtaskRunLoops()) {
         CFRunLoopWakeUp(runLoop.get());
     }
 }
 
+void GlobalObject::queueTaskToEventLoop(const JSGlobalObject* globalObject, WTF::PassRefPtr<Microtask> task) {
+    return GlobalObject::queueTaskToEventLoop(globalObject, task, static_cast<MicrotaskFlags>(0));
+}
+
+void GlobalObject::queueTaskToEventLoop(const JSGlobalObject* globalObject, WTF::PassRefPtr<Microtask> task, MicrotaskFlags taskFlags) {
+    GlobalObject* self = jsCast<GlobalObject*>(const_cast<JSGlobalObject*>(globalObject));
+    self->queueTaskToEventLoop(task, taskFlags);
+}
+
 void GlobalObject::drainMicrotasks() {
     while (!this->_microtasksQueue.isEmpty()) {
-        this->_microtasksQueue.takeFirst()->run(this->globalExec());
+        std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags> task = this->_microtasksQueue.takeFirst();
+        if ((task.second & this->_microtasksMask) == this->_microtasksMask) {
+            task.first->run(this->globalExec());
+        }
     }
 }
 

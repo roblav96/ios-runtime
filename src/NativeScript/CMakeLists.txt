@@ -88,6 +88,7 @@ set(HEADER_FILES
     Workers/JSWorkerGlobalObject.h
     Workers/WorkerMessagingProxy.h
     Workers/WorkerThread.h
+    Workers/Task.h
     SymbolLoader.h
     TimelineRecordFactory.h
     TNSRuntime+Diagnostics.h
@@ -181,6 +182,7 @@ set(SOURCE_FILES
     Workers/JSWorkerGlobalObject.cpp
     Workers/WorkerMessagingProxy.cpp
     Workers/WorkerThread.mm
+    Workers/Task.cpp
     SymbolLoader.mm
     TimelineRecordFactory.cpp
     TNSRuntime+Diagnostics.mm

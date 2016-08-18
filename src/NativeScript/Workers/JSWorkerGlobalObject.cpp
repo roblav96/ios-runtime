@@ -1,19 +1,14 @@
 #include "JSWorkerGlobalObject.h"
 #include "WorkerMessagingProxy.h"
 #include "Error.h"
+#include "Task.h"
 
 using namespace JSC;
 
 namespace NativeScript {
 
 static EncodedJSValue JSC_HOST_CALL jsWorkerGlobalObjectClose(ExecState* execState) {
-    if (!execState->thisValue().isCell()) {
-        return throwVMError(execState, createTypeError(execState, makeString("The close function can only be called on worker global object.")));
-    }
     JSWorkerGlobalObject* globalObject = jsCast<JSWorkerGlobalObject*>(execState->lexicalGlobalObject());
-    JSCell* currentThis = execState->thisValue().asCell();
-    if (UNLIKELY(globalObject->globalThis() != currentThis))
-        return throwVMError(execState, createTypeError(execState, makeString("The close function can only be called on worker global object.")));
     ASSERT_GC_OBJECT_INHERITS(globalObject, JSWorkerGlobalObject::info());
     globalObject->close();
     return JSValue::encode(jsUndefined());
@@ -41,6 +36,7 @@ Structure* JSWorkerGlobalObject::createStructure(VM& vm, JSValue prototype) {
 
 JSWorkerGlobalObject::JSWorkerGlobalObject(VM& vm, Structure* structure)
     : GlobalObject(vm, structure)
+    , isClosing(false)
     , workerObjectProxy(nullptr) {
 }
 
@@ -57,11 +53,21 @@ void JSWorkerGlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
     this->putDirectNativeFunction(vm, this, Identifier::fromString(&vm, "importScripts"), 1, commonJSRequire, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
 }
 
-void JSWorkerGlobalObject::setWorkerObjectProxy(WorkerObjectProxy* workerObjectProxy) {
-    std::shared_ptr<WorkerObjectProxy> proxy(workerObjectProxy);
-    this->workerObjectProxy = proxy;
+void JSWorkerGlobalObject::setWorkerObjectProxy(WorkerMessagingProxy* workerObjectProxy) {
+    this->workerObjectProxy = std::shared_ptr<WorkerMessagingProxy>(workerObjectProxy);
 }
 
 void JSWorkerGlobalObject::close() {
+    if (isClosing)
+        return;
+
+    isClosing = true;
+    // Allow only cleanup tasks to be executed
+    this->setMicrotasksMask((MicrotaskFlags)(this->microtasksMask() | MicrotaskFlags::Cleanup));
+
+    this->queueTaskToEventLoop(adoptRef(new Task([this](ExecState* execState) {
+                                   this->workerObjectProxy->workerGlobalScopeClosed();
+                               })),
+                               MicrotaskFlags::Cleanup);
 }
 }

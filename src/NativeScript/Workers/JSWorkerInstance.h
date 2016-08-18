@@ -10,7 +10,7 @@
 #define __NativeScript__JSWorkerInstance__
 
 namespace NativeScript {
-class WorkerGlobalScopeProxy;
+class WorkerMessagingProxy;
 
 class JSWorkerInstance : public JSC::JSDestructibleObject {
 public:
@@ -37,12 +37,11 @@ public:
 private:
     WTF::String applicationPath;
     WTF::String entryModuleId;
-    std::shared_ptr<WorkerGlobalScopeProxy> globalObjectProxy;
+    std::shared_ptr<WorkerMessagingProxy> globalObjectProxy;
 
     JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId);
 
-    ~JSWorkerInstance() {
-    }
+    ~JSWorkerInstance();
 
     void finishCreation(JSC::VM& vm);
 

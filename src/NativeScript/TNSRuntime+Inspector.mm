@@ -98,7 +98,7 @@ private:
 - (void)setup {
     JSC::JSLockHolder lock(_runtime->_vm.get());
 
-    WTF::Deque<WTF::RefPtr<JSC::Microtask>> other;
+    WTF::Deque<std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags>> other;
     GlobalObject* globalObject = self->_runtime->_globalObject.get();
 
     globalObject->microtasks().swap(other);
