@@ -31,7 +31,7 @@ protected:
 
 private:
     bool isClosing;
-    std::shared_ptr<WorkerMessagingProxy> workerObjectProxy;
+    WorkerMessagingProxy* workerObjectProxy;
 };
 } // namespace NativeScript
 

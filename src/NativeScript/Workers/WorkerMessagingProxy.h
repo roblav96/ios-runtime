@@ -47,7 +47,7 @@ private:
     // TODO: These should be in JSC::WriteBarrier
     GlobalObject* parentGlobalObject;
     JSWorkerInstance* worker;
-    std::shared_ptr<WorkerThread> workerThread;
+    std::unique_ptr<WorkerThread> workerThread;
 
     bool askedToTerminate;
 };

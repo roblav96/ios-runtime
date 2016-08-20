@@ -17,7 +17,7 @@ class WorkerMessagingProxy;
 
 class WorkerThread {
 public:
-    bool start();
+    WTF::ThreadIdentifier start();
 
     // Called on worker termination
     void stop();
@@ -35,8 +35,9 @@ private:
 
     String applicationPath;
     String entryModuleId;
-    bool threadStarted;
+    WTF::ThreadIdentifier threadID;
     WorkerMessagingProxy* workerObjectProxy;
+    WTF::Lock threadCreationMutex;
 
     id runtime;
     bool continueRunLoop;

@@ -22,7 +22,7 @@ WorkerMessagingProxy::WorkerMessagingProxy(GlobalObject* parentGlobalObject, JSW
 }
 
 void WorkerMessagingProxy::startWorkerGlobalScope(const String& applicationPath, const String& entryModuleId) {
-    this->workerThread = std::shared_ptr<WorkerThread>(new WorkerThread(applicationPath, entryModuleId, this));
+    this->workerThread = std::make_unique<WorkerThread>(applicationPath, entryModuleId, this);
     this->workerThread->start();
 }
 

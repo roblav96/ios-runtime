@@ -20,19 +20,17 @@ using namespace JSC;
 WorkerThread::WorkerThread(const String applicationPath, const String& entryModuleId, WorkerMessagingProxy* workerObjectProxy)
     : applicationPath(applicationPath)
     , entryModuleId(entryModuleId)
-    , threadStarted(false)
+    , threadID(0)
     , workerObjectProxy(workerObjectProxy)
     , continueRunLoop(true)
     , useMicrotasksQueue(true) {
 }
 
-bool WorkerThread::start() {
-    if (!this->threadStarted) {
-
-        createThread(WorkerThread::workerThreadMain, this, "NativeScript: Worker");
-        this->threadStarted = true;
-    }
-    return this->threadStarted;
+WTF::ThreadIdentifier WorkerThread::start() {
+    WTF::LockHolder lock(this->threadCreationMutex);
+    if (!this->threadID)
+        this->threadID = createThread(WorkerThread::workerThreadMain, this, "NativeScript: Worker");
+    return this->threadID;
 }
 
 void WorkerThread::stop() {
@@ -52,11 +50,10 @@ void WorkerThread::workerThreadMain(void* thread) {
 }
 
 void WorkerThread::workerThreadStart() {
-    TNSRuntime* tnsRuntime;
+    WTF::LockHolder lock(this->threadCreationMutex);
     @autoreleasepool {
         // create new runtime instance
-        tnsRuntime = [[TNSRuntime alloc] initWithApplicationPath:applicationPath isWorker:true];
-        this->runtime = tnsRuntime;
+        this->runtime = [[TNSRuntime alloc] initWithApplicationPath:applicationPath isWorker:true];
         this->workerGlobalObject()->setWorkerObjectProxy(this->workerObjectProxy);
         [runtime scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
         // Add the entry module execution task to the run loop
@@ -77,9 +74,10 @@ void WorkerThread::workerThreadStart() {
         } while (result != kCFRunLoopRunFinished && result != kCFRunLoopRunStopped && this->continueRunLoop);
     }
 
-    [tnsRuntime release];
+    [this->runtime release];
     this->runtime = nil;
     this->workerObjectProxy = nullptr;
+    detachThread(this->threadID);
 }
 
 void WorkerThread::enqueTaskOnGlobalObject(WTF::PassRefPtr<JSC::Microtask> task, MicrotaskFlags flags) {

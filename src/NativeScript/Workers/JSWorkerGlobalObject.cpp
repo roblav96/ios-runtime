@@ -54,7 +54,7 @@ void JSWorkerGlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
 }
 
 void JSWorkerGlobalObject::setWorkerObjectProxy(WorkerMessagingProxy* workerObjectProxy) {
-    this->workerObjectProxy = std::shared_ptr<WorkerMessagingProxy>(workerObjectProxy);
+    this->workerObjectProxy = workerObjectProxy;
 }
 
 void JSWorkerGlobalObject::close() {
