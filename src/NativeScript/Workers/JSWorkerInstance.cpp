@@ -31,6 +31,10 @@ JSWorkerInstance::JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure, WTF::
 }
 
 JSWorkerInstance::~JSWorkerInstance() {
+    this->terminate();
+}
+
+void JSWorkerInstance::terminate() {
     this->globalObjectProxy->terminateWorkerGlobalScope();
 }
 

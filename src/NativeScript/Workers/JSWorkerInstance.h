@@ -30,9 +30,7 @@ public:
     void postMessage(PassRefPtr<SerializedScriptValue> message, MessagePort*, ExceptionCode&);
      */
 
-    void terminate() {
-        //contextProxy->terminateWorkerGlobalScope();
-    }
+    void terminate();
 
 private:
     WTF::String applicationPath;
