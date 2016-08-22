@@ -469,8 +469,14 @@ void GlobalObject::queueTaskToEventLoop(const JSGlobalObject* globalObject, WTF:
 }
 
 void GlobalObject::drainMicrotasks() {
-    while (!this->_microtasksQueue.isEmpty()) {
-        std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags> task = this->_microtasksQueue.takeFirst();
+    while (true) {
+        std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags> task;
+        {
+            LockHolder lock(this->_queueTaskMutex);
+            if (this->_microtasksQueue.isEmpty())
+                break;
+            task = this->_microtasksQueue.takeFirst();
+        }
         if ((task.second & this->_microtasksMask) == this->_microtasksMask) {
             task.first->run(this->globalExec());
         }
