@@ -30,6 +30,8 @@ protected:
     void finishCreation(WTF::String applicationPath, JSC::VM& vm);
 
 private:
+    JSC::Identifier _onCloseIdentifier;
+
     bool isClosing;
     WorkerMessagingProxy* workerObjectProxy;
 };

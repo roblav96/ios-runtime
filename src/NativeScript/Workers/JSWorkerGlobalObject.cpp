@@ -3,6 +3,8 @@
 #include "Error.h"
 #include "Task.h"
 
+#include <JavaScriptCore/runtime/JSJob.h>
+
 using namespace JSC;
 
 namespace NativeScript {
@@ -46,6 +48,9 @@ JSWorkerGlobalObject::~JSWorkerGlobalObject() {
 void JSWorkerGlobalObject::finishCreation(WTF::String applicationPath, VM& vm) {
     Base::finishCreation(applicationPath, vm);
 
+    this->_onCloseIdentifier = Identifier::fromString(&vm, "onclose");
+
+    this->putDirect(vm, _onCloseIdentifier, jsUndefined(), DontEnum | DontDelete);
     this->putDirect(vm, Identifier::fromString(&vm, "self"), this->globalExec()->globalThisValue(), DontEnum | ReadOnly | DontDelete);
     this->putDirectNativeFunction(vm, this, vm.propertyNames->close, 0, jsWorkerGlobalObjectClose, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
     this->putDirectNativeFunction(vm, this, vm.propertyNames->postMessage, 0, jsWorkerGlobalObjectPostMessage, NoIntrinsic, DontEnum | DontDelete | ReadOnly);
@@ -66,6 +71,10 @@ void JSWorkerGlobalObject::close() {
     this->setMicrotasksMask((MicrotaskFlags)(this->microtasksMask() | MicrotaskFlags::Cleanup));
 
     this->queueTaskToEventLoop(adoptRef(new Task([this](ExecState* execState) {
+                                   JSValue onClose = this->getDirect(this->vm(), this->_onCloseIdentifier);
+                                   if (onClose.isCell() && onClose.isValidCallee()) {
+                                       this->queueTaskToEventLoop(createJSJob(this->vm(), onClose, JSC::constructEmptyArray(this->globalExec(), nullptr)), MicrotaskFlags::Cleanup);
+                                   }
                                    this->workerObjectProxy->workerGlobalScopeClosed();
                                })),
                                MicrotaskFlags::Cleanup);
