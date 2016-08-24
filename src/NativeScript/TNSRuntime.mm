@@ -21,7 +21,6 @@
 #import <UIKit/UIApplication.h>
 #endif
 
-#include "inlineFunctions.h"
 #import "TNSRuntime.h"
 #import "TNSRuntime+Private.h"
 #include "JSErrors.h"
@@ -46,10 +45,6 @@ using namespace NativeScript;
 }
 
 - (instancetype)initWithApplicationPath:(NSString*)applicationPath {
-    return [self initWithApplicationPath:applicationPath isWorker:false];
-}
-
-- (instancetype)initWithApplicationPath:(NSString*)applicationPath isWorker:(BOOL)isWorker {
     if (self = [super init]) {
         self->_vm = VM::create(SmallHeap);
         self->_applicationPath = [[applicationPath stringByStandardizingPath] retain];
@@ -63,24 +58,14 @@ using namespace NativeScript;
 #endif
 
         JSLockHolder lock(*self->_vm);
-        if (isWorker)
-            self->_globalObject = Strong<JSWorkerGlobalObject>(*self->_vm, JSWorkerGlobalObject::create(self->_applicationPath, *self->_vm, JSWorkerGlobalObject::createStructure(*self->_vm, jsNull())));
-        else
-            self->_globalObject = Strong<GlobalObject>(*self->_vm, GlobalObject::create(self->_applicationPath, *self->_vm, GlobalObject::createStructure(*self->_vm, jsNull())));
-
-#if PLATFORM(IOS)
-        NakedPtr<Exception> exception;
-        evaluate(self->_globalObject->globalExec(), makeSource(WTF::String(inlineFunctions_js, inlineFunctions_js_len)), JSValue(), exception);
-#ifdef DEBUG
-        if (exception) {
-            std::cerr << "Error while evaluating inlineFunctions.js: " << exception->value().toWTFString(self->_globalObject->globalExec()).utf8().data() << "\n";
-            ASSERT_NOT_REACHED();
-        }
-#endif
-#endif
+        self->_globalObject = Strong<GlobalObject>(*self->_vm, [self createGlobalObjectInstance]);
     }
 
     return self;
+}
+
+- (GlobalObject*)createGlobalObjectInstance {
+    return GlobalObject::create(*self->_vm, GlobalObject::createStructure(*self->_vm, jsNull()), self->_applicationPath);
 }
 
 - (void)scheduleInRunLoop:(NSRunLoop*)runLoop forMode:(NSString*)mode {
@@ -151,6 +136,14 @@ using namespace NativeScript;
     }
 
     [super dealloc];
+}
+
+@end
+
+@implementation TNSWorkerRuntime
+
+- (GlobalObject*)createGlobalObjectInstance {
+    return JSWorkerGlobalObject::create(*self->_vm, JSWorkerGlobalObject::createStructure(*self->_vm, jsNull()), self->_applicationPath);
 }
 
 @end

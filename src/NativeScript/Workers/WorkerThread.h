@@ -11,6 +11,8 @@
 
 #include <JavaScriptCore/InternalFunction.h>
 
+@class TNSRuntime;
+
 namespace NativeScript {
 class JSWorkerGlobalObject;
 class WorkerMessagingProxy;
@@ -33,19 +35,18 @@ private:
     static void workerThreadMain(void*);
     void workerThreadStart();
 
-    String applicationPath;
-    String entryModuleId;
-    WTF::ThreadIdentifier threadID;
-    WorkerMessagingProxy* workerObjectProxy;
-    WTF::Lock threadCreationMutex;
+    WTF::String _applicationPath;
+    WTF::String _entryModuleId;
+    WTF::ThreadIdentifier _threadID;
+    WorkerMessagingProxy* _workerObjectProxy;
+    WTF::Lock _threadCreationMutex;
 
-    id runtime;
-    bool continueRunLoop;
+    TNSRuntime* _runtime;
 
     // Tasks queued before runtime initilaization are saved here and executed after the runtime is initialized
-    WTF::Deque<WTF::RefPtr<JSC::Microtask>> microtasksQueue;
-    std::atomic<bool> useMicrotasksQueue;
-    WTF::Lock microtasksQueueMutex;
+    WTF::Deque<WTF::RefPtr<JSC::Microtask>> _microtasksQueue;
+    std::atomic<bool> _useMicrotasksQueue;
+    WTF::Lock _microtasksQueueMutex;
 };
 }
 

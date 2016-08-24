@@ -14,15 +14,15 @@ namespace NativeScript {
 class Task : public JSC::Microtask {
 public:
     Task(std::function<void(JSC::ExecState*)> action)
-        : action(action) {
+        : _action(action) {
     }
 
     virtual void run(JSC::ExecState* execState) override {
-        this->action(execState);
+        this->_action(execState);
     }
 
 private:
-    std::function<void(JSC::ExecState*)> action;
+    std::function<void(JSC::ExecState*)> _action;
 };
 }
 

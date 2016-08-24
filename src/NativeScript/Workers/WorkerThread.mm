@@ -9,40 +9,39 @@
 #include "WorkerThread.h"
 #include "WorkerMessagingProxy.h"
 #include "JSWorkerGlobalObject.h"
-#include "../TNSRuntime+Private.h"
+#include "TNSRuntime+Private.h"
 #include "Task.h"
 #include <JavaScriptCore/Completion.h>
 #include <JavaScriptCore/StrongInlines.h>
+#include <WTF/RunLoop.h>
 
 namespace NativeScript {
 using namespace JSC;
 
 WorkerThread::WorkerThread(const String applicationPath, const String& entryModuleId, WorkerMessagingProxy* workerObjectProxy)
-    : applicationPath(applicationPath)
-    , entryModuleId(entryModuleId)
-    , threadID(0)
-    , workerObjectProxy(workerObjectProxy)
-    , continueRunLoop(true)
-    , useMicrotasksQueue(true) {
+    : _applicationPath(applicationPath)
+    , _entryModuleId(entryModuleId)
+    , _threadID(0)
+    , _workerObjectProxy(workerObjectProxy)
+    , _useMicrotasksQueue(true) {
 }
 
 WTF::ThreadIdentifier WorkerThread::start() {
-    WTF::LockHolder lock(this->threadCreationMutex);
-    if (!this->threadID)
-        this->threadID = createThread(WorkerThread::workerThreadMain, this, "NativeScript: Worker");
-    return this->threadID;
+    WTF::LockHolder lock(this->_threadCreationMutex);
+    if (!this->_threadID)
+        this->_threadID = createThread(WorkerThread::workerThreadMain, this, "NativeScript: Worker");
+    return this->_threadID;
 }
 
 void WorkerThread::stop() {
-    this->enqueTaskOnGlobalObject(adoptRef(new Task([this](JSC::ExecState* execState) {
-                                      this->continueRunLoop = false;
-                                      [this->runtime removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+    this->enqueTaskOnGlobalObject(adoptRef(new Task([this](ExecState* execState) {
+                                      WTF::RunLoop::current().stop();
                                   })),
                                   MicrotaskFlags::Cleanup);
 }
 
 JSWorkerGlobalObject* WorkerThread::workerGlobalObject() {
-    return jsCast<JSWorkerGlobalObject*>(((TNSRuntime*)this->runtime)->_globalObject.get());
+    return jsCast<JSWorkerGlobalObject*>(this->_runtime->_globalObject.get());
 }
 
 void WorkerThread::workerThreadMain(void* thread) {
@@ -50,41 +49,38 @@ void WorkerThread::workerThreadMain(void* thread) {
 }
 
 void WorkerThread::workerThreadStart() {
-    WTF::LockHolder lock(this->threadCreationMutex);
+    WTF::LockHolder lock(this->_threadCreationMutex);
     @autoreleasepool {
         // create new runtime instance
-        this->runtime = [[TNSRuntime alloc] initWithApplicationPath:applicationPath isWorker:true];
-        this->workerGlobalObject()->setWorkerObjectProxy(this->workerObjectProxy);
-        [runtime scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+        this->_runtime = [[TNSWorkerRuntime alloc] initWithApplicationPath:this->_applicationPath];
+        this->workerGlobalObject()->setWorkerObjectProxy(this->_workerObjectProxy);
+        [this->_runtime scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
         // Add the entry module execution task to the run loop
-        this->workerGlobalObject()->queueTaskToEventLoop(adoptRef(new Task([this](JSC::ExecState* execState) {
-            [this->runtime executeModule:this->entryModuleId];
+        this->workerGlobalObject()->queueTaskToEventLoop(adoptRef(new Task([this](ExecState* execState) {
+            [this->_runtime executeModule:this->_entryModuleId];
         })));
         {
-            WTF::LockHolder lock(this->microtasksQueueMutex);
-            while (!this->microtasksQueue.isEmpty()) {
-                this->workerGlobalObject()->queueTaskToEventLoop(this->microtasksQueue.takeFirst());
+            WTF::LockHolder lock(this->_microtasksQueueMutex);
+            while (!this->_microtasksQueue.isEmpty()) {
+                this->workerGlobalObject()->queueTaskToEventLoop(this->_microtasksQueue.takeFirst());
             }
-            this->useMicrotasksQueue = false;
+            this->_useMicrotasksQueue = false;
         }
 
-        CFRunLoopRunResult result;
-        do {
-            result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 10, true);
-        } while (result != kCFRunLoopRunFinished && result != kCFRunLoopRunStopped && this->continueRunLoop);
+        WTF::RunLoop::run();
     }
 
-    [this->runtime release];
-    this->runtime = nil;
-    this->workerObjectProxy = nullptr;
-    detachThread(this->threadID);
+    [this->_runtime release];
+    this->_runtime = nil;
+    this->_workerObjectProxy = nullptr;
+    detachThread(this->_threadID);
 }
 
-void WorkerThread::enqueTaskOnGlobalObject(WTF::PassRefPtr<JSC::Microtask> task, MicrotaskFlags flags) {
-    WTF::LockHolder lock(this->microtasksQueueMutex);
-    if (UNLIKELY(this->useMicrotasksQueue)) {
+void WorkerThread::enqueTaskOnGlobalObject(WTF::PassRefPtr<Microtask> task, MicrotaskFlags flags) {
+    WTF::LockHolder lock(this->_microtasksQueueMutex);
+    if (UNLIKELY(this->_useMicrotasksQueue)) {
         // The runtime is not initialized yet
-        this->microtasksQueue.append(task);
+        this->_microtasksQueue.append(task);
     } else {
         this->workerGlobalObject()->queueTaskToEventLoop(task, flags);
     }

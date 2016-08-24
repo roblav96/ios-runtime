@@ -487,6 +487,14 @@ describe(module.id, function () {
         }).toThrow();
     });
 
+    it("should allow calling callbacks from another thread", function () {
+        var result = TNSTestNativeCallbacks.callOnThread(function() {
+            return 'method called';
+        });
+
+        expect(result).toBe('method called');
+    });
+
     it("ApiIterator", function () {
         var counter = 0;
 

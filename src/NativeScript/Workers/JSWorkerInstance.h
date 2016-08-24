@@ -18,7 +18,11 @@ public:
 
     DECLARE_INFO;
 
-    static JSWorkerInstance* create(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId);
+    static JSWorkerInstance* create(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId) {
+        JSWorkerInstance* object = new (NotNull, JSC::allocateCell<JSWorkerInstance>(vm.heap)) JSWorkerInstance(vm, structure);
+        object->finishCreation(vm, applicationPath, entryModuleId);
+        return object;
+    }
 
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype) {
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
@@ -33,19 +37,21 @@ public:
     void terminate();
 
 private:
-    WTF::String applicationPath;
-    WTF::String entryModuleId;
-    std::shared_ptr<WorkerMessagingProxy> globalObjectProxy;
-
-    JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure, WTF::String& applicationPath, const WTF::String& entryModuleId);
+    JSWorkerInstance(JSC::VM& vm, JSC::Structure* structure)
+        : Base(vm, structure) {
+    }
 
     ~JSWorkerInstance();
 
-    void finishCreation(JSC::VM& vm);
+    void finishCreation(JSC::VM& vm, WTF::String& applicationPath, const WTF::String& entryModuleId);
 
     static void destroy(JSC::JSCell* cell) {
         JSC::jsCast<JSWorkerInstance*>(cell)->~JSWorkerInstance();
     }
+
+    WTF::String _applicationPath;
+    WTF::String _entryModuleId;
+    std::shared_ptr<WorkerMessagingProxy> _globalObjectProxy;
 };
 }
 

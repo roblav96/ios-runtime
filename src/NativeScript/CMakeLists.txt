@@ -82,13 +82,6 @@ set(HEADER_FILES
     Runtime/JSWeakRefInstance.h
     Runtime/JSWeakRefPrototype.h
     Runtime/ReleasePool.h
-    Workers/JSWorkerConstructor.h
-    Workers/JSWorkerInstance.h
-    Workers/JSWorkerPrototype.h
-    Workers/JSWorkerGlobalObject.h
-    Workers/WorkerMessagingProxy.h
-    Workers/WorkerThread.h
-    Workers/Task.h
     SymbolLoader.h
     TimelineRecordFactory.h
     TNSRuntime+Diagnostics.h
@@ -97,6 +90,13 @@ set(HEADER_FILES
     TNSRuntime.h
     TypeFactory.h
     WeakHandleOwners.h
+    Workers/JSWorkerConstructor.h
+    Workers/JSWorkerGlobalObject.h
+    Workers/JSWorkerInstance.h
+    Workers/JSWorkerPrototype.h
+    Workers/Task.h
+    Workers/WorkerMessagingProxy.h
+    Workers/WorkerThread.h
 )
 
 set(SOURCE_FILES
@@ -176,19 +176,18 @@ set(SOURCE_FILES
     Runtime/JSWeakRefConstructor.cpp
     Runtime/JSWeakRefInstance.cpp
     Runtime/JSWeakRefPrototype.cpp
-    Workers/JSWorkerConstructor.cpp
-    Workers/JSWorkerInstance.cpp
-    Workers/JSWorkerPrototype.cpp
-    Workers/JSWorkerGlobalObject.cpp
-    Workers/WorkerMessagingProxy.cpp
-    Workers/WorkerThread.mm
-    Workers/Task.cpp
     SymbolLoader.mm
     TimelineRecordFactory.cpp
     TNSRuntime+Diagnostics.mm
     TNSRuntime+Inspector.mm
     TNSRuntime.mm
     TypeFactory.mm
+    Workers/JSWorkerConstructor.cpp
+    Workers/JSWorkerGlobalObject.mm
+    Workers/JSWorkerInstance.mm
+    Workers/JSWorkerPrototype.cpp
+    Workers/WorkerMessagingProxy.mm
+    Workers/WorkerThread.mm
 )
 
 set(NativeScript_PUBLIC_HEADERS

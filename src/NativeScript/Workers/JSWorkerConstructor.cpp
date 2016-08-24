@@ -29,10 +29,6 @@ static EncodedJSValue JSC_HOST_CALL constructJSWorker(ExecState* exec) {
 
 const ClassInfo JSWorkerConstructor::s_info = { "WorkerConstructor", &Base::s_info, 0, CREATE_METHOD_TABLE(JSWorkerConstructor) };
 
-JSWorkerConstructor::JSWorkerConstructor(VM& vm, Structure* structure)
-    : Base(vm, structure) {
-}
-
 void JSWorkerConstructor::finishCreation(VM& vm, JSWorkerPrototype* prototype) {
     Base::finishCreation(vm, WTF::ASCIILiteral("Worker"));
 

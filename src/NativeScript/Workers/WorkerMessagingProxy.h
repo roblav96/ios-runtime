@@ -17,7 +17,7 @@ class JSWorkerInstance;
 
 class WorkerGlobalScopeProxy {
 public:
-    virtual void startWorkerGlobalScope(const String& applicationPath, const String& entryModuleId) = 0;
+    virtual void startWorkerGlobalScope(const WTF::String& applicationPath, const WTF::String& entryModuleId) = 0;
     virtual void terminateWorkerGlobalScope() = 0;
 };
 
@@ -37,7 +37,7 @@ public:
     WorkerMessagingProxy(GlobalObject* parentGlobalObject, JSWorkerInstance* worker);
 
     // WorkerGlobalScopeProxy
-    virtual void startWorkerGlobalScope(const String& applicationPath, const String& entryModuleId) override;
+    virtual void startWorkerGlobalScope(const WTF::String& applicationPath, const WTF::String& entryModuleId) override;
     virtual void terminateWorkerGlobalScope() override;
 
     // WorkerObjectProxy
@@ -45,11 +45,11 @@ public:
 
 private:
     // TODO: These should be in JSC::WriteBarrier
-    GlobalObject* parentGlobalObject;
-    JSWorkerInstance* worker;
-    std::unique_ptr<WorkerThread> workerThread;
+    GlobalObject* _parentGlobalObject;
+    JSWorkerInstance* _worker;
+    std::unique_ptr<WorkerThread> _workerThread;
 
-    bool askedToTerminate;
+    bool _askedToTerminate;
 };
 }
 

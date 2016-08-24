@@ -34,19 +34,21 @@ class GlobalObject : public JSC::JSGlobalObject {
 public:
     typedef JSC::JSGlobalObject Base;
 
-    friend class ObjCClassBuilder;
+    static const unsigned StructureFlags;
 
-    static GlobalObject* create(WTF::String applicationPath, JSC::VM& vm, JSC::Structure* structure);
-
-    static const bool needsDestruction = false;
+    static GlobalObject* create(JSC::VM& vm, JSC::Structure* structure, WTF::String applicationPath) {
+        GlobalObject* object = new (NotNull, JSC::allocateCell<GlobalObject>(vm.heap)) GlobalObject(vm, structure);
+        object->finishCreation(vm, applicationPath);
+        return object;
+    }
 
     DECLARE_INFO;
 
-    static const unsigned StructureFlags;
+    static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSValue prototype) {
+        return JSC::Structure::create(vm, 0, prototype, JSC::TypeInfo(JSC::GlobalObjectType, GlobalObject::StructureFlags), GlobalObject::info());
+    }
 
     static const JSC::GlobalObjectMethodTable globalObjectMethodTable;
-
-    static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSValue prototype);
 
     static bool getOwnPropertySlot(JSC::JSObject* object, JSC::ExecState* execState, JSC::PropertyName propertyName, JSC::PropertySlot& propertySlot);
 
@@ -193,20 +195,24 @@ public:
     }
 
 protected:
-    static void destroy(JSC::JSCell* cell);
-
     static JSC::EncodedJSValue JSC_HOST_CALL commonJSRequire(JSC::ExecState*);
 
     GlobalObject(JSC::VM& vm, JSC::Structure* structure);
 
     ~GlobalObject();
 
-    void finishCreation(WTF::String applicationPath, JSC::VM& vm);
+    void finishCreation(JSC::VM& vm, WTF::String applicationPath);
 
 private:
+    friend class ObjCClassBuilder;
+
     WTF::Deque<std::pair<WTF::RefPtr<JSC::Microtask>, MicrotaskFlags>> _microtasksQueue;
     WTF::Lock _queueTaskMutex;
     MicrotaskFlags _microtasksMask;
+
+    static void destroy(JSC::JSCell* cell) {
+        static_cast<GlobalObject*>(cell)->~GlobalObject();
+    }
 
     static void queueTaskToEventLoop(const JSC::JSGlobalObject* globalObject, WTF::PassRefPtr<JSC::Microtask> task);
 
